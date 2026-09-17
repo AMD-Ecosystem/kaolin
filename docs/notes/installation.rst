@@ -17,6 +17,22 @@ Requirements
 * `CUDA <https://developer.nvidia.com/cuda-toolkit>`_ >= 10.0 (with 'nvcc' installed) See `CUDA Toolkit Archive <https://developer.nvidia.com/cuda-toolkit-archive>`_ to install older version.
 * torch >= 2.0, <= 2.5.1
 
+AMD Instinct (ROCm)
+-------------------
+| On AMD Instinct GPUs (MI300X / gfx942, MI350X / gfx950), Kaolin is published as the
+ ``amd-kaolin`` distribution on the AMD PyPI index. The distribution name differs so it
+ does not clash with the upstream ``kaolin`` distribution; the import package is unchanged
+ (``import kaolin`` still works).
+| Install a ROCm PyTorch build first (torch 2.13.0+rocm7.1 on ROCm 10.x), then:
+
+.. code-block:: bash
+
+ $ pip install amd-kaolin==0.18.0 --index-url <AMD PyPI index URL>
+
+.. Note::
+ The ``amd-kaolin`` wheel targets AMD Instinct via a ROCm PyTorch build. Verify with
+ ``python -c "import kaolin, torch; print(torch.version.hip)"``.
+
 Quick Start (Linux, Windows)
 ----------------------------
 | Make sure any of the supported CUDA and torch versions below are pre-installed.
@@ -24,43 +40,43 @@ Quick Start (Linux, Windows)
 
 .. code-block:: bash
 
-    $ pip install kaolin==0.18.0 -f https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-{TORCH_VER}_cu{CUDA_VER}.html
+ $ pip install kaolin==0.18.0 -f https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-{TORCH_VER}_cu{CUDA_VER}.html
 
 .. Note::
-    Replace *TORCH_VER* and *CUDA_VER* with any of the compatible options below.
+ Replace *TORCH_VER* and *CUDA_VER* with any of the compatible options below.
 
 
 .. rst-class:: center-align-center-col
 
-    +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
-    | **torch / CUDA** | **cu118** | **cu121** | **cu124** | **cu126** | **cu128** | **cu129** |
-    +==================+===========+===========+===========+===========+===========+===========+
-    | **torch-2.8.0**  |           |           |           |     ✓     |     ✓     |     ✓     |
-    +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
-    | **torch-2.7.1**  |     ✓     |           |           |     ✓     |     ✓     |           |
-    +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
-    | **torch-2.7.0**  |     ✓     |           |           |     ✓     |     ✓     |           |
-    +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
-    | **torch-2.6.0**  |     ✓     |           |     ✓     |     ✓     |           |           |
-    +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
-    | **torch-2.5.1**  |     ✓     |     ✓     |     ✓     |     ✓     |     ✓     |     ✓     |
-    +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
-    | **torch-2.5.0**  |     ✓     |     ✓     |     ✓     |     ✓     |     ✓     |     ✓     |
-    +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
-    | **torch-2.4.1**  |     ✓     |     ✓     |     ✓     |     ✓     |     ✓     |     ✓     |
-    +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
-    | **torch-2.4.0**  |     ✓     |     ✓     |     ✓     |     ✓     |     ✓     |     ✓     |
-    +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
-    | **torch-2.3.1**  |     ✓     |     ✓     |           |           |           |           |
-    +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
-    | **torch-2.3.0**  |     ✓     |     ✓     |           |           |           |           |
-    +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
-   
+ +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
+ | **torch / CUDA** | **cu118** | **cu121** | **cu124** | **cu126** | **cu128** | **cu129** |
+ +==================+===========+===========+===========+===========+===========+===========+
+ | **torch-2.8.0** | | | | ✓ | ✓ | ✓ |
+ +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
+ | **torch-2.7.1** | ✓ | | | ✓ | ✓ | |
+ +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
+ | **torch-2.7.0** | ✓ | | | ✓ | ✓ | |
+ +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
+ | **torch-2.6.0** | ✓ | | ✓ | ✓ | | |
+ +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
+ | **torch-2.5.1** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+ +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
+ | **torch-2.5.0** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+ +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
+ | **torch-2.4.1** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+ +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
+ | **torch-2.4.0** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+ +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
+ | **torch-2.3.1** | ✓ | ✓ | | | | |
+ +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
+ | **torch-2.3.0** | ✓ | ✓ | | | | |
+ +------------------+-----------+-----------+-----------+-----------+-----------+-----------+
+ 
 For example, to install kaolin for torch 2.8.0 and CUDA 12.9:
 
 .. code-block:: bash
 
-    $ pip install kaolin==0.18.0 -f https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.8.0_cu129.html
+ $ pip install kaolin==0.18.0 -f https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.8.0_cu129.html
 
 You can check https://nvidia-kaolin.s3.us-east-2.amazonaws.com/index.html to see all the wheels available.
 
@@ -68,12 +84,12 @@ Installation from source
 ------------------------
 
 .. Note::
-    We recommend installing Kaolin into a virtual environment. For instance to create a new environment with `Anaconda <https://www.anaconda.com/>`_:
-    
-    .. code-block:: bash
-    
-        $ conda create --name kaolin python=3.9
-        $ conda activate kaolin
+ We recommend installing Kaolin into a virtual environment. For instance to create a new environment with `Anaconda <https://www.anaconda.com/>`_:
+ 
+ .. code-block:: bash
+ 
+ $ conda create --name kaolin python=3.9
+ $ conda activate kaolin
 
 1. Clone Repository
 ^^^^^^^^^^^^^^^^^^^
@@ -82,9 +98,9 @@ Clone and optionally check out an `official release <https://github.com/NVIDIAGa
 
 .. code-block:: bash
 
-    $ git clone --recursive https://github.com/NVIDIAGameWorks/kaolin
-    $ cd kaolin
-    $ git checkout v0.18.0 # optional
+ $ git clone --recursive https://github.com/NVIDIAGameWorks/kaolin
+ $ cd kaolin
+ $ git checkout v0.18.0 # optional
 
 2. Install dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -93,7 +109,7 @@ You can install the dependencies running:
 
 .. code-block:: bash
 
-    $ pip install -r tools/build_requirements.txt -r tools/viz_requirements.txt -r tools/requirements.txt
+ $ pip install -r tools/build_requirements.txt -r tools/viz_requirements.txt -r tools/requirements.txt
 
 2. Test CUDA
 ^^^^^^^^^^^^
@@ -102,8 +118,8 @@ You can verify that CUDA is properly installed at the desired version with nvcc 
 
 .. code-block:: bash
 
-    $ nvidia-smi
-    $ nvcc --version
+ $ nvidia-smi
+ $ nvcc --version
 
 3. Install Pytorch
 ^^^^^^^^^^^^^^^^^^
@@ -116,7 +132,7 @@ Here is how to install the latest Pytorch version supported by Kaolin for cuda 1
 
 .. code-block:: bash
 
-    $ pip install torch==2.8.0 --extra-index-url https://download.pytorch.org/whl/cu128
+ $ pip install torch==2.8.0 --extra-index-url https://download.pytorch.org/whl/cu128
 
 
 4. Optional Environment Variables
@@ -132,10 +148,10 @@ Here is how to install the latest Pytorch version supported by Kaolin for cuda 1
 
 .. code-block:: bash
 
-    $ python setup.py develop
+ $ python setup.py develop
 
 .. Note::
-    Kaolin can be installed without GPU, however, CPU support is limited and many CUDA-only functions will be missing.
+ Kaolin can be installed without GPU, however, CPU support is limited and many CUDA-only functions will be missing.
 
 Testing your installation
 -------------------------
@@ -144,7 +160,7 @@ Run a quick test of your installation and version:
 
 .. code-block:: bash
 
-    $ python -c "import kaolin; print(kaolin.__version__)"
+ $ python -c "import kaolin; print(kaolin.__version__)"
 
 Running tests
 ^^^^^^^^^^^^^
@@ -153,10 +169,10 @@ For an exhaustive check, install testing dependencies and run tests as follows:
 
 .. code-block:: bash
 
-    $ pip install -r tools/ci_requirements.txt
-    $ export CI='true' # on Linux
-    $ set CI='true' # on Windows
-    $ pytest --import-mode=importlib -s tests/python/
+ $ pip install -r tools/ci_requirements.txt
+ $ export CI='true' # on Linux
+ $ set CI='true' # on Windows
+ $ pytest --import-mode=importlib -s tests/python/
 
 .. Note::
-    These tests rely on CUDA operations and will fail if you installed on CPU only, where not all functionality is available.
+ These tests rely on CUDA operations and will fail if you installed on CPU only, where not all functionality is available.

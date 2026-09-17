@@ -47,4 +47,4 @@ RUN "C:\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64 -vcvars_ver=%MSVC_VER_P
     set FORCE_CUDA=1 && \
     for /d %d in (c:\buildtools\vc\tools\msvc\%MSVC_VER_PREFIX%*) do set CUDAHOSTCXX=%d\bin\hostx64\x64\cl.exe && \
     python setup.py bdist_wheel --dist-dir . && \
-    for %f in (kaolin-*.whl) do pip install %f
+    for %f in (amd_kaolin-*.whl) do pip install %f

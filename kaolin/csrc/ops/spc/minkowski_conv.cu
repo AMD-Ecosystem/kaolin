@@ -1,5 +1,6 @@
 // Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES.
 // All rights reserved.
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -273,25 +274,25 @@ namespace minkowski {
 					(curr_num_active + threads.y - 1) / threads.y);
 				switch (shared_mem_size) {
 				case 32:
-					matmul<Dtype, Itype, 32> << <grid, threads, 0, stream >> > (
+					matmul<Dtype, Itype, 32> <<<grid, threads, 0, stream >>> (
 						d_in_feat, in_nchannel, curr_num_active,
 						&d_kernel[k * in_nchannel * out_nchannel], out_nchannel,
 						in_nchannel, d_out_feat, in_maps[k].data() + offset, out_maps[k].data() + offset);
 					break;
 				case 24:
-					matmul<Dtype, Itype, 24> << <grid, threads, 0, stream >> > (
+					matmul<Dtype, Itype, 24> <<<grid, threads, 0, stream >>> (
 						d_in_feat, in_nchannel, curr_num_active,
 						&d_kernel[k * in_nchannel * out_nchannel], out_nchannel,
 						in_nchannel, d_out_feat, in_maps[k].data() + offset, out_maps[k].data() + offset);
 					break;
 				case 16:
-					matmul<Dtype, Itype, 16> << <grid, threads, 0, stream >> > (
+					matmul<Dtype, Itype, 16> <<<grid, threads, 0, stream >>> (
 						d_in_feat, in_nchannel, curr_num_active,
 						&d_kernel[k * in_nchannel * out_nchannel], out_nchannel,
 						in_nchannel, d_out_feat, in_maps[k].data() + offset, out_maps[k].data() + offset);
 					break;
 				case 8:
-					matmul<Dtype, Itype, 8> << <grid, threads, 0, stream >> > (
+					matmul<Dtype, Itype, 8> <<<grid, threads, 0, stream >>> (
 						d_in_feat, in_nchannel, curr_num_active,
 						&d_kernel[k * in_nchannel * out_nchannel], out_nchannel,
 						in_nchannel, d_out_feat, in_maps[k].data() + offset, out_maps[k].data() + offset);
@@ -361,7 +362,7 @@ namespace minkowski {
 					(curr_num_active + threads.y - 1) / threads.y);
 				switch (shared_mem_size) {
 				case 32:
-					matmul2<Dtype, Itype, 32> << <grid, threads, 0, stream >> > (
+					matmul2<Dtype, Itype, 32> <<<grid, threads, 0, stream >>> (
 						d_grad_out_feat, out_nchannel, curr_num_active, // A
 						&d_kernel[k * in_nchannel * out_nchannel], out_nchannel,
 						in_nchannel,                                    // B
@@ -371,7 +372,7 @@ namespace minkowski {
 						in_maps[k].data() + offset, out_maps[k].data() + offset);
 					break;
 				case 24:
-					matmul2<Dtype, Itype, 24> << <grid, threads, 0, stream >> > (
+					matmul2<Dtype, Itype, 24> <<<grid, threads, 0, stream >>> (
 						d_grad_out_feat, out_nchannel, curr_num_active, // A
 						&d_kernel[k * in_nchannel * out_nchannel], out_nchannel,
 						in_nchannel,                                    // B
@@ -381,7 +382,7 @@ namespace minkowski {
 						in_maps[k].data() + offset, out_maps[k].data() + offset);
 					break;
 				case 16:
-					matmul2<Dtype, Itype, 16> << <grid, threads, 0, stream >> > (
+					matmul2<Dtype, Itype, 16> <<<grid, threads, 0, stream >>> (
 						d_grad_out_feat, out_nchannel, curr_num_active, // A
 						&d_kernel[k * in_nchannel * out_nchannel], out_nchannel,
 						in_nchannel,                                    // B
@@ -391,7 +392,7 @@ namespace minkowski {
 						in_maps[k].data() + offset, out_maps[k].data() + offset);
 					break;
 				case 8:
-					matmul2<Dtype, Itype, 8> << <grid, threads, 0, stream >> > (
+					matmul2<Dtype, Itype, 8> <<<grid, threads, 0, stream >>> (
 						d_grad_out_feat, out_nchannel, curr_num_active, // A
 						&d_kernel[k * in_nchannel * out_nchannel], out_nchannel,
 						in_nchannel,                                    // B

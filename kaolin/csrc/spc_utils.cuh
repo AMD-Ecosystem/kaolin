@@ -1,5 +1,6 @@
 // Copyright (c) 2021-2026 NVIDIA CORPORATION & AFFILIATES.
 // All rights reserved.
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +19,7 @@
 
 #include <cub/device/device_scan.cuh>
 #include "spc_math.h"
+#include "rocm_cub_compat.h"  // CubDebugExit shim on ROCm (hipCUB lacks it)
 
 namespace kaolin {
     

@@ -9,14 +9,33 @@
 > - **Conversions** between 3D representations, **quaternion** ops, and **USD** I/O
 
 <p align="center">
-  <img src="assets/kaolin.png" width="60%" align="bottom" alt="Kaolin">
-  <img src="assets/doll_dozer_enc.gif" width="35%" align="bottom" alt="Physics simulation with Kaolin">
+ <img src="assets/kaolin.png" width="60%" align="bottom" alt="Kaolin">
+ <img src="assets/doll_dozer_enc.gif" width="35%" align="bottom" alt="Physics simulation with Kaolin">
 </p>
 
 [![Documentation](https://img.shields.io/badge/docs-kaolin.readthedocs.io-blue)](https://kaolin.readthedocs.io/en/latest/)
 [![Version](https://img.shields.io/badge/version-0.18.0-green)](https://github.com/NVIDIAGameWorks/kaolin/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![NVIDIA Kaolin](https://img.shields.io/badge/NVIDIA-Kaolin-76B900)](https://developer.nvidia.com/kaolin)
+![Runs on AMD Instinct](https://img.shields.io/badge/AMD%20Instinct-ROCm%2010.0-00C2E1)
+
+## Runs on AMD Instinct
+
+This branch is an AMD ROCm/HIP enablement port of kaolin 0.18.0, validated on AMD Instinct MI300X (gfx942) and MI350X/MI355X (gfx950). The full kaolin._C GPU extension (87 kernels, ~10K LOC) builds and runs on ROCm via PyTorch build-time hipify plus targeted wave64 correctness fixes.
+
+**Validated:** MI300X (gfx942) -- 15213 passed, 88 failed (all non-port), 1444 skipped of 16816 tests; MI350X (gfx950) -- 5618 passed, 1 failed, 649 skipped of 6268 (targeted subset). Wave64 parity gate: bit-exact results on all three corrected kernels (sg_inner_product, packed_simple_sum, deftet).
+
+**Build:**
+
+```bash
+# Inside the ROCm 10.0 public ROCm container with a ROCm torch installed:
+export FORCE_CUDA=1
+export PYTORCH_ROCM_ARCH="gfx942;gfx950"
+export IGNORE_TORCH_VER=1
+python setup.py develop
+```
+
+See the build and validation sections above for the full source-build recipe and the wave64 parity details.
 
 Kaolin packages reusable building blocks from NVIDIA 3D research into a cohesive PyTorch API — continuously improving representation-agnostic physics simulation, fast conversions between representations, quaternion math, batched mesh and splat containers, I/O, visualization and more. See [kaolin.readthedocs.io](https://kaolin.readthedocs.io/en/latest/) for tutorials and API reference, and [developer.nvidia.com/kaolin](https://developer.nvidia.com/kaolin) for the NVIDIA Kaolin hub.
 
@@ -223,7 +242,7 @@ import kaolin
 from kaolin.rep import GaussianSplatModel
 
 gs = kaolin.io.import_gaussiancloud("scene.ply")
-print(gs)  # GaussianSplatModel with positions, scales, rotations, opacities, ...
+print(gs) # GaussianSplatModel with positions, scales, rotations, opacities, ...
 ```
 
 Simulate a mesh with Simplicits — see the [physics tutorial](examples/tutorial/physics/simplicits_mesh.ipynb).
@@ -328,11 +347,11 @@ If you use Kaolin in your research, please cite:
 
 ```bibtex
 @software{KaolinLibrary,
-  author  = {Tsang, Clement Fuji and Shugrina, Maria and Lafleche, Jean-Francois and Perel, Or and Loop, Charles and Takikawa, Towaki and Modi, Vismay and Zook, Alexander and Wang, Jiehan and Chen, Wenzheng and Shen, Tianchang and Gao, Jun and Jatavallabhula, Krishna Murthy and Smith, Edward and Rozantsev, Artem and Fidler, Sanja and State, Gavriel and Gorski, Jason and Xiang, Tommy and Li, Jianing and Li, Michael and Lebaredian, Rev},
-  title   = {{Kaolin: A PyTorch Library for Accelerating 3D Deep Learning Research}},
-  version = {0.18.0},
-  date    = {2024-11-20},
-  url     = {https://github.com/NVIDIAGameWorks/kaolin}
+ author = {Tsang, Clement Fuji and Shugrina, Maria and Lafleche, Jean-Francois and Perel, Or and Loop, Charles and Takikawa, Towaki and Modi, Vismay and Zook, Alexander and Wang, Jiehan and Chen, Wenzheng and Shen, Tianchang and Gao, Jun and Jatavallabhula, Krishna Murthy and Smith, Edward and Rozantsev, Artem and Fidler, Sanja and State, Gavriel and Gorski, Jason and Xiang, Tommy and Li, Jianing and Li, Michael and Lebaredian, Rev},
+ title = {{Kaolin: A PyTorch Library for Accelerating 3D Deep Learning Research}},
+ version = {0.18.0},
+ date = {2024-11-20},
+ url = {https://github.com/NVIDIAGameWorks/kaolin}
 }
 ```
 

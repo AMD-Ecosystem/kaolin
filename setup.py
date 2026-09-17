@@ -1,7 +1,13 @@
+# Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+#
 # some useful environment variables:
 #
 # TORCH_CUDA_ARCH_LIST
-#   specify which CUDA architectures to build for
+#   specify which CUDA architectures to build for (NVIDIA / CUDA builds)
+#
+# PYTORCH_ROCM_ARCH
+#   specify which AMD GPU architectures to build for on a ROCm PyTorch
+#   (e.g. "gfx942;gfx950"); the equivalent of TORCH_CUDA_ARCH_LIST
 #
 # IGNORE_TORCH_VER
 #   ignore version requirements for PyTorch
@@ -55,6 +61,25 @@ if numpy_spec is None:
 
 import numpy
 from torch.utils.cpp_extension import BuildExtension, CppExtension, CUDAExtension, CUDA_HOME
+try:
+    from torch.utils.cpp_extension import ROCM_HOME
+except ImportError:
+    ROCM_HOME = None
+
+
+def is_rocm_pytorch():
+    """True when running against a ROCm build of PyTorch.
+
+    Canonical is_rocm_pytorch() guard (matches DeepSpeed op_builder and other
+    torch-extension build systems): torch.version.hip is set AND ROCM_HOME is
+    known. On a ROCm torch, torch.cuda.is_available() is still True and the
+    CUDAExtension path is the correct one (torch's build-time hipify converts the
+    .cu sources to HIP), but the nvcc-specific probes below must be skipped.
+    """
+    return (getattr(torch.version, 'hip', None) is not None) and (ROCM_HOME is not None)
+
+
+IS_ROCM = is_rocm_pytorch()
 
 # Setup logging and working directory
 cwd = os.path.dirname(os.path.abspath(__file__))
@@ -69,8 +94,22 @@ def get_cuda_bare_metal_version(cuda_dir):
     release = output[release_idx].split(".")
     return raw_output, release[0], release[1][0]
 
-# Handle CUDA availability
-if not torch.cuda.is_available() and os.getenv('FORCE_CUDA', '0') == '1':
+# Handle CUDA / ROCm availability
+if IS_ROCM:
+    # ROCm PyTorch: torch build-time hipify converts kaolin/csrc's .cu/.cuh to HIP
+    # and links the HIP runtime (amdhip64 / c10_hip / torch_hip). The nvcc probe
+    # and the TORCH_CUDA_ARCH_LIST cross-compile table below are NVIDIA-only and
+    # are skipped. GPU architectures are selected via PYTORCH_ROCM_ARCH
+    # (e.g. "gfx942;gfx950"); default to the primary Instinct targets if unset.
+    if os.getenv("PYTORCH_ROCM_ARCH") is None:
+        os.environ["PYTORCH_ROCM_ARCH"] = "gfx942;gfx950"
+    logging.warning(
+        "ROCm PyTorch detected (torch.version.hip=%s). Building kaolin._C via "
+        "torch build-time hipify for PYTORCH_ROCM_ARCH=%s.",
+        torch.version.hip, os.environ["PYTORCH_ROCM_ARCH"]
+    )
+    print(f'PYTORCH_ROCM_ARCH: {os.environ["PYTORCH_ROCM_ARCH"]}')
+elif not torch.cuda.is_available() and os.getenv('FORCE_CUDA', '0') == '1':
     logging.warning(
         "Torch did not find available GPUs. Assuming cross-compilation and all supported architectures.\n"
         "Set TORCH_CUDA_ARCH_LIST for specific architectures."
@@ -105,7 +144,12 @@ elif not torch.cuda.is_available():
     )
 
 # Package metadata
-PACKAGE_NAME = 'kaolin'
+# AMD release distribution name. The distribution is published as 'amd-kaolin' on
+# the AMD PyPI index so it installs without clashing with the upstream 'kaolin'
+# distribution. This is a distribution-name-only change: the import package is
+# unchanged (`import kaolin` still works). The wheel FILENAME normalizes the
+# hyphen to an underscore per PEP 427 (amd_kaolin-<version>-*.whl).
+PACKAGE_NAME = 'amd-kaolin'
 DESCRIPTION = 'Kaolin: A PyTorch library for accelerating 3D deep learning research'
 URL = 'https://github.com/NVIDIAGameWorks/kaolin'
 AUTHOR = 'NVIDIA'
@@ -153,7 +197,9 @@ def get_extensions():
     define_macros = []
     include_dirs = []
     sources = glob.glob('kaolin/csrc/**/*.cpp', recursive=True)
-    # FORCE_CUDA is for cross-compilation in docker build
+    # FORCE_CUDA is for cross-compilation in docker build. On a ROCm torch,
+    # torch.cuda.is_available() is True (it maps to HIP), so the CUDAExtension
+    # branch is taken and the .cu sources are hipified at build time.
     is_cuda = torch.cuda.is_available() or os.getenv('FORCE_CUDA', '0') == '1'
 
     if is_cuda:
@@ -184,15 +230,22 @@ def get_extensions():
         )
     ]
     
-    # Replace cudart with cudart_static
-    for ext in extensions:
-        ext.libraries = ['cudart_static' if x == 'cudart' else x for x in ext.libraries]
+    # Replace cudart with cudart_static (NVIDIA only). On ROCm there is no cudart;
+    # the HIP runtime (amdhip64) is linked by torch's BuildExtension, so skip this.
+    if not IS_ROCM:
+        for ext in extensions:
+            ext.libraries = ['cudart_static' if x == 'cudart' else x for x in ext.libraries]
 
     return extensions
 
 def get_include_dirs():
-    """Get include directories for CUDA builds."""
+    """Get include directories for CUDA / ROCm builds."""
     include_dirs = []
+    if IS_ROCM:
+        # hipCUB / rocPRIM ship with the ROCm PyTorch; the bundled third_party/cub
+        # (a CUDA-only header for old CUDA toolkits) must NOT be added -- torch's
+        # hipify remaps cub:: -> hipcub:: and pulls hipCUB from the ROCm install.
+        return include_dirs
     if torch.cuda.is_available() or os.getenv('FORCE_CUDA', '0') == '1':
         _, major, _ = get_cuda_bare_metal_version(CUDA_HOME)
         if "CUB_HOME" in os.environ:
