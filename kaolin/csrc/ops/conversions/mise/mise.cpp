@@ -1,5 +1,6 @@
 // Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES.
 // All rights reserved.
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -104,8 +105,10 @@ at::Tensor MISE::query() {
       n_unknown += 1;
   }
 
-  at::Tensor points = at::zeros({n_unknown, 3}, std::nullopt, at::kLong,
-                                std::nullopt, at::kCPU, std::nullopt);
+  // Use TensorOptions (stable across torch versions) instead of the deprecated
+  // 6-arg factory overload, which newer torch (>= 2.13) no longer provides.
+  at::Tensor points = at::zeros({n_unknown, 3},
+                                at::TensorOptions().dtype(at::kLong).device(at::kCPU));
   auto points_ptr = points.data_ptr<int64_t>();
   int32_t idx = 0;
   for (auto p : grid_points) {
@@ -121,7 +124,9 @@ at::Tensor MISE::query() {
 
 at::Tensor MISE::to_dense() {
   int32_t resolution_1 = resolution + 1;
-  at::Tensor out = at::full({resolution_1, resolution_1, resolution_1}, std::numeric_limits<float>::quiet_NaN(), at::kFloat, std::nullopt, at::kCPU, std::nullopt);
+  at::Tensor out = at::full({resolution_1, resolution_1, resolution_1},
+                            std::numeric_limits<float>::quiet_NaN(),
+                            at::TensorOptions().dtype(at::kFloat).device(at::kCPU));
   float* out_ptr = out.data_ptr<float>();
   for (auto point : grid_points) {
     out_ptr[point.loc.x * resolution_1 * resolution_1 + point.loc.y * resolution_1 + point.loc.z] = point.value;

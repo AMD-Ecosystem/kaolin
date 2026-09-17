@@ -1,4 +1,5 @@
 // Copyright (c) 2019-2020, NVIDIA CORPORATION. All rights reserved.
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +19,8 @@
 #include <ATen/ATen.h>
 #include <typeinfo>
 #include <cuda.h>
+
+#include "rocm_cub_compat.h"
 
 #define PRIVATE_CASE_TYPE(ENUM_TYPE, TYPE, TYPE_NAME, ...) \
   case ENUM_TYPE: { \

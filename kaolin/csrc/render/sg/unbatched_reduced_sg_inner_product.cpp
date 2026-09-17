@@ -102,7 +102,10 @@ at::Tensor unbatched_reduced_sg_inner_product_forward_cuda(
   at::checkSize(__func__, other_direction_arg, {num_other, 3});
   at::checkSize(__func__, other_sharpness_arg, {num_other});
 
-  at::Tensor output = at::zeros_like(intensity);
+  // The forward kernel writes every element of `output` (grid-strides over all
+  // num_sg rows and stores all 3 channels), so a pre-zero is dead work: use an
+  // uninitialized buffer and drop the FillFunctor launch.
+  at::Tensor output = at::empty_like(intensity);
 
 #ifdef WITH_CUDA
   if (num_sg > 0) {
@@ -185,9 +188,17 @@ std::vector<at::Tensor> unbatched_reduced_sg_inner_product_backward_cuda(
   at::checkSize(__func__, other_direction_arg, {num_other, 3});
   at::checkSize(__func__, other_sharpness_arg, {num_other});
 
+  // The per-sg grads are now atomicAdd targets (the backward launch splits
+  // num_other across the blockIdx.y grid axis, so each block contributes a
+  // partial sum), so they MUST start zeroed -> at::zeros.
   auto grad_intensity = at::zeros_like(intensity);
   auto grad_direction = at::zeros_like(direction);
   auto grad_sharpness = at::zeros_like(sharpness);
+  // The per-other grads are accumulated on-device with atomicAdd (a
+  // read-modify-write), so they MUST start zeroed. The kernel now atomicAdds
+  // directly into these [num_other,*] tensors instead of a [blocks,num_other,*]
+  // block-cache, which removes the 3 scratch allocations AND the 3 at::sum_out
+  // reductions from the host tail.
   auto grad_other_intensity = at::zeros_like(other_intensity);
   auto grad_other_direction = at::zeros_like(other_direction);
   auto grad_other_sharpness = at::zeros_like(other_sharpness);

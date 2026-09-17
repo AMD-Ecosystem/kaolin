@@ -15,7 +15,22 @@
 
 from __future__ import annotations
 import torch
-import warp as wp
+try:
+    import warp as wp
+    _WARP_AVAILABLE = True
+except ImportError:
+    _WARP_AVAILABLE = False
+    # Dummy wp so @wp.kernel decorators parse at module level without error.
+    # from __future__ import annotations makes type annotations lazy (strings),
+    # so wp.array / wp.vec3 etc. are only evaluated when the functions are called.
+    class _DummyWP:
+        def kernel(self, f):
+            return f
+        def __getattr__(self, name):
+            return self
+        def __call__(self, *args, **kwargs):
+            return self
+    wp = _DummyWP()
 
 __all__ = [
     'center_points',
@@ -50,10 +65,10 @@ def center_points(points: torch.FloatTensor, normalize: bool = False, eps=1e-6):
 
 
 def farthest_point_sampling(points, k):
-    r"""Performs farthest point sampling to select a subset of :math:`k` points from a point cloud. 
+    r"""Performs farthest point sampling to select a subset of :math:`k` points from a point cloud.
     The first point returned is the one most distant from the center, and each subsequent point
-    is the one most distant from the previously-selected set. 
-    
+    is the one most distant from the previously-selected set.
+
     This operation is useful for generating a nicely-spaced subset of a large point cloud, with
     a blue-noise-like distribution.
 
@@ -67,6 +82,11 @@ def farthest_point_sampling(points, k):
     Return:
         (torch.LongTensor) indices into the `points` tensor giving each sampled point, shape :math:`(\text{batch_size}, \text{k})`
     """
+    if not _WARP_AVAILABLE:
+        raise RuntimeError(
+            "farthest_point_sampling requires warp-lang which is not available on ROCm. "
+            "Use a CUDA environment or an alternative FPS implementation."
+        )
 
     assert len(points.shape) == 3, f'Points have unexpected shape {points.shape}'
     assert points.is_cuda, f'Points should be on a CUDA device, only CUDA is supported for farthest point sampling. Device is {points.device}'
@@ -284,7 +304,7 @@ def _farthest_point_sampling_warp_headchunk(points, k):
     
 
 
-# This kernel does the heavy lifting. Given an array sorted, it finds as many farthest points 
+# This kernel does the heavy lifting. Given an array sorted, it finds as many farthest points
 # as possible among the top M elements of the array using a single block.
 @wp.kernel
 def _take_top_m_farthest_kernel(

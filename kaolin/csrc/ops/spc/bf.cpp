@@ -1,5 +1,6 @@
 // Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES.
 // All rights reserved.
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +20,10 @@
 #include <ATen/ATen.h>
 #ifdef WITH_CUDA
 #include <vector_types.h>
+// SetupProfileCurve/FreeProfileCurve use the runtime malloc/memcpy/free API
+// (cudaMalloc etc., hipified to hipMalloc on ROCm). bf.cpp is a plain C++ TU
+// (g++, not nvcc/hipcc), so the runtime header must be included explicitly.
+#include <cuda_runtime.h>
 #endif
 
 #include "../../check.h"
@@ -32,6 +37,16 @@ using namespace std;
 using namespace at::indexing;
 
 #ifdef WITH_CUDA
+
+// Profile-curve handle: a 1D texture object on CUDA; on ROCm the HIP texture API
+// is unavailable on gfx942, so it is a plain device uchar4 buffer (read with __ldg
+// in bf_cuda.cu). See KAOLIN_PROFILE_T in bf_cuda.cu. KB:
+// cuda-texture-object-to-hip-texture.
+#if defined(__HIP_PLATFORM_AMD__) || defined(USE_ROCM)
+typedef const uchar4* KAOLIN_PROFILE_T;
+#else
+typedef cudaTextureObject_t KAOLIN_PROFILE_T;
+#endif
 
 void compactify_nodes_cuda(
   uint32_t num_nodes, 
@@ -66,7 +81,7 @@ void oracleB_final_cuda(
   uint32_t* occ, 
   uint32_t* estate, 
   float* out_probs,
-  cudaTextureObject_t		ProfileCurve);
+  KAOLIN_PROFILE_T		ProfileCurve);
 
 void process_final_voxels_cuda(
   uint32_t num_nodes, 
@@ -89,7 +104,7 @@ void colorsB_final_cuda(
   const float* probs,
   uchar4* out_colors,
   float3* out_normals,
-  cudaTextureObject_t		ProfileCurve);
+  KAOLIN_PROFILE_T		ProfileCurve);
 
 void merge_empty_cuda(
   uint32_t num, 
@@ -147,11 +162,16 @@ void bq_touch_cuda(
   uint32_t* occ,
   uint32_t* estate);
 
-cudaArray* SetupProfileCurve(cudaTextureObject_t* ProfileCurve)
+// Sets up the read-only 9-element uchar4 Bayesian-fusion profile curve. Returns an
+// opaque handle to free with FreeProfileCurve. On CUDA this is a cudaArray behind
+// a 1D texture object; on ROCm (no HIP texture API on gfx942) it is a plain device
+// uchar4 buffer that bf_cuda.cu reads with __ldg + byte->normalized-float (matching
+// cudaReadModeNormalizedFloat point sampling).
+void* SetupProfileCurve(KAOLIN_PROFILE_T* ProfileCurve)
 {
   uint32_t num = 9;
- 
-  uint32_t BPSVals[] = {	
+
+  uint32_t BPSVals[] = {
     0x02000000,
     0x10080402,
     0x30241810,
@@ -162,6 +182,14 @@ cudaArray* SetupProfileCurve(cudaTextureObject_t* ProfileCurve)
     0x31323438,
     0x30303031  };
 
+#if defined(__HIP_PLATFORM_AMD__) || defined(USE_ROCM)
+  // Plain device buffer; the kernel reads with __ldg and normalizes.
+  uchar4* devPtr = nullptr;
+  cudaMalloc((void**)&devPtr, num * sizeof(uint32_t));
+  cudaMemcpy((void*)devPtr, BPSVals, num * sizeof(uint32_t), cudaMemcpyHostToDevice);
+  *ProfileCurve = devPtr;
+  return (void*)devPtr;
+#else
   cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(8, 8, 8, 8, cudaChannelFormatKindUnsigned);
   cudaArray *cuArray;
   // cudaMallocArray with height=0 creates a 2D array (height=1) in CUDA 12+, which is incompatible
@@ -186,7 +214,19 @@ cudaArray* SetupProfileCurve(cudaTextureObject_t* ProfileCurve)
 
   cudaCreateTextureObject(ProfileCurve, &resDescr, &texDescr, NULL);
 
-  return cuArray;
+  return (void*)cuArray;
+#endif
+}
+
+// Frees the handle returned by SetupProfileCurve.
+static inline void FreeProfileCurve(KAOLIN_PROFILE_T ProfileCurve, void* handle)
+{
+#if defined(__HIP_PLATFORM_AMD__) || defined(USE_ROCM)
+  cudaFree(handle);
+#else
+  cudaDestroyTextureObject(ProfileCurve);
+  cudaFreeArray((cudaArray*)handle);
+#endif
 }
 
 #endif // WITH_CUDA
@@ -311,12 +351,12 @@ std::vector<at::Tensor> oracleB_final(
   }
   else
   {
-    cudaTextureObject_t		ProfileCurve;
-    cudaArray *cuArray = SetupProfileCurve(&ProfileCurve);
+    KAOLIN_PROFILE_T		ProfileCurve;
+    void *cuArray = SetupProfileCurve(&ProfileCurve);
 
     oracleB_final_cuda(num, d_points, T, one_over_sigma, Dmap, h, w, occ, estate, d_out_probs, ProfileCurve);
 
-    cudaFreeArray(cuArray);
+    FreeProfileCurve(ProfileCurve, cuArray);
   }
 
   return {occupancy, empty_state, out_probs};
@@ -395,12 +435,12 @@ std::vector<at::Tensor> colorsB_final(
   TORCH_CHECK(sigma > 0.0f, "Sigma must be strictly positive");
   float one_over_sigma = 1.0f / sigma;
 
-  cudaTextureObject_t		ProfileCurve;
-  cudaArray *cuArray = SetupProfileCurve(&ProfileCurve);
+  KAOLIN_PROFILE_T		ProfileCurve;
+  void *cuArray = SetupProfileCurve(&ProfileCurve);
 
   colorsB_final_cuda(num, d_points, T, one_over_sigma, image, Dmap, h, w, d_probs, d_out_colors, d_out_normals, ProfileCurve);
   
-  cudaFreeArray(cuArray);
+  FreeProfileCurve(ProfileCurve, cuArray);
 
   return {out_colors, out_normals};
 #else

@@ -1,5 +1,6 @@
 // Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES.
 // All rights reserved.
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,9 +20,23 @@
 #ifdef WITH_CUDA
 
 #include <stdint.h>
+#if defined(__HIP_PLATFORM_AMD__) || defined(USE_ROCM)
+// On ROCm, hip/hip_vector_types.h provides the vectorized types AND the make_*
+// constructors (the CUDA vector_functions.h role); hip/hip_math_constants.h
+// provides the HIP math constants. torch's build-time hipify maps <vector_types.h>
+// but not <vector_functions.h> / <math_constants.h>, so include the HIP peers
+// explicitly here. HIP names the "norm huge" constant HIP_NORM_HUGE_F (same value
+// as CUDA's CUDART_NORM_HUGE_F = FLT_MAX), so alias it.
+#include <hip/hip_vector_types.h>
+#include <hip/hip_math_constants.h>
+#ifndef CUDART_NORM_HUGE_F
+#define CUDART_NORM_HUGE_F HIP_NORM_HUGE_F
+#endif
+#else
 #include <vector_types.h>
 #include <vector_functions.h>
 #include <math_constants.h>
+#endif
 
 #ifndef __CUDACC__
 
